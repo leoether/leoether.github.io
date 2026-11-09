@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>Squeekchain Staking Tool — Kelola Stake, Power &amp; Klaim SQK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Archivo:wght@700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f1e3; --bg2:#efe6cf; --surface:#fffdf6; --surface2:#fdf6df;
+    --ink:#1d2419; --ink2:#4a5344; --muted:#7a8272;
+    --line:#ddd2b4; --line2:#cbbd92;
+    --brand:#1f6f4a; --brand-dark:#14532f; --brand-soft:#dcefe2;
+    --amber:#f2b21b; --amber-dark:#b97e06; --amber-soft:#fdeed0;
+    --red:#b3402e; --red-soft:#fbe7e1;
+    --teal:#0e6b6b;
+    --shadow:0 10px 30px rgba(60,48,10,.10);
+    --radius:18px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12160f; --bg2:#171c13; --surface:#1c2217; --surface2:#232a1c;
+      --ink:#eef2e2; --ink2:#c3ccb2; --muted:#8d967f;
+      --line:#333d29; --line2:#46523a;
+      --brand:#4cc084; --brand-dark:#8fe0b2; --brand-soft:#1d3325;
+      --amber:#f5bc2e; --amber-dark:#f5bc2e; --amber-soft:#3a2f10;
+      --red:#ff8a76; --red-soft:#3d201a;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .mono{font-family:"JetBrains Mono",monospace}
+  a{color:var(--brand);font-weight:700}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 18px 64px}
+
+  /* status strip */
+  .strip{position:sticky;top:0;z-index:30;background:var(--brand-dark);color:#eafff1}
+  @media (prefers-color-scheme: dark){.strip{background:#0d2417}}
+  .strip-in{max-width:1120px;margin:0 auto;padding:9px 18px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:12.5px;font-weight:600}
+  .dot{width:8px;height:8px;border-radius:99px;background:#7dffb0;display:inline-block;margin-right:6px;box-shadow:0 0 0 3px rgba(125,255,176,.25)}
+  .dot.off{background:#ffb59f;box-shadow:0 0 0 3px rgba(255,181,159,.25)}
+  .strip .right{margin-left:auto;opacity:.85;font-weight:500}
+
+  /* hero */
+  .hero{padding:34px 0 8px}
+  .hero-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:22px;align-items:start}
+  @media(max-width:820px){.hero-grid{grid-template-columns:1fr}}
+  h1{font-family:"Archivo",sans-serif;font-weight:900;font-size:clamp(30px,5.2vw,50px);line-height:1.04;letter-spacing:-.02em;margin:0 0 12px}
+  h1 .hl{background:linear-gradient(transparent 62%, var(--amber) 62%, var(--amber) 92%, transparent 92%);padding:0 2px}
+  .lede{font-size:16.5px;color:var(--ink2);max-width:56ch;margin:0 0 18px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:700}
+  .chip b{color:var(--brand)}
+  .hero-card{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+  .hero-card h3{margin:0 0 4px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .big-claim{font-family:"Archivo",sans-serif;font-size:44px;font-weight:900;line-height:1;color:var(--brand-dark)}
+  @media (prefers-color-scheme: dark){.big-claim{color:var(--brand)}}
+  .big-claim small{font-size:19px;font-weight:800}
+  .final-badge{display:inline-block;background:var(--amber);color:#241a00;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 10px;margin-left:8px;vertical-align:middle;letter-spacing:.04em}
+  .hero-card p{margin:10px 0 0;font-size:13.5px;color:var(--ink2)}
+
+  /* stat cards */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0 6px}
+  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:460px){.stats{grid-template-columns:1fr}}
+  .stat{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+  .stat .k{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .stat .v{font-family:"Archivo",sans-serif;font-size:27px;font-weight:800;margin-top:4px;line-height:1.1}
+  .stat .v small{font-size:14px;font-weight:700;color:var(--ink2)}
+  .stat .s{font-size:12.5px;color:var(--ink2);margin-top:3px}
+  .tag{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand-dark);letter-spacing:.03em}
+  @media (prefers-color-scheme: dark){.tag{color:var(--brand)}}
+  .tag.warn{background:var(--amber-soft);color:var(--amber-dark)}
+  .tag.red{background:var(--red-soft);color:var(--red)}
+
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .sec-num{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:13px;background:var(--ink);color:var(--bg);border-radius:8px;padding:3px 9px}
+  h2{font-family:"Archivo",sans-serif;font-size:clamp(21px,3vw,27px);font-weight:800;margin:0;letter-spacing:-.01em}
+  .sec-sub{color:var(--ink2);font-size:14.5px;max-width:72ch;margin:4px 0 16px}
+
+  .panel{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+  .panel + .panel{margin-top:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+
+  label.flabel{display:block;font-size:12.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 7px}
+  input[type=text],input[type=number]{width:100%;background:var(--bg);border:1.5px solid var(--line2);border-radius:12px;padding:12px 14px;font:inherit;font-size:14.5px;color:var(--ink)}
+  input:focus{outline:3px solid var(--amber);outline-offset:1px;border-color:var(--amber-dark)}
+  .btn{appearance:none;border:none;cursor:pointer;font:inherit;font-weight:800;border-radius:12px;padding:12px 20px;font-size:14.5px;display:inline-flex;align-items:center;gap:8px;justify-content:center;transition:transform .08s ease, opacity .15s}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-brand{background:var(--brand);color:#fff}
+  @media (prefers-color-scheme: dark){.btn-brand{color:#08130c}}
+  .btn-amber{background:var(--amber);color:#241a00}
+  .btn-ghost{background:transparent;border:1.5px solid var(--line2);color:var(--ink)}
+  .btn-sm{padding:8px 14px;font-size:13px;border-radius:10px}
+  .rowflex{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .rowflex .grow{flex:1 1 260px}
+
+  .result-box{background:var(--surface2);border:1.5px dashed var(--line2);border-radius:14px;padding:16px 18px;margin-top:16px}
+  .result-box .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  .result-box .k{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .result-box .v{font-family:"Archivo",sans-serif;font-size:21px;font-weight:800;margin-top:2px}
+  .result-box .v small{font-size:13px;color:var(--ink2);font-weight:700}
+  .status-line{font-size:13px;margin-top:12px;color:var(--ink2)}
+  .status-line.err{color:var(--red);font-weight:700}
+  .status-line.ok{color:var(--brand);font-weight:700}
+
+  /* steps */
+  .steps{list-style:none;margin:0;padding:0;counter-reset:step}
+  .steps li{display:flex;gap:14px;padding:13px 0;border-bottom:1px dashed var(--line)}
+  .steps li:last-child{border-bottom:none}
+  .steps .n{counter-increment:step;flex:0 0 30px;height:30px;border-radius:10px;background:var(--amber);color:#241a00;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .steps .n::before{content:counter(step)}
+  .steps b{display:block;font-size:15px}
+  .steps p{margin:2px 0 0;font-size:13.5px;color:var(--ink2)}
+  .warnbox{background:var(--amber-soft);border:1.5px solid var(--amber);border-radius:14px;padding:14px 16px;font-size:13.5px;margin-top:16px}
+  .warnbox b{color:var(--amber-dark)}
+  @media (prefers-color-scheme: dark){.warnbox b{color:var(--amber)}}
+  .redbox{background:var(--red-soft);border:1.5px solid var(--red);border-radius:14px;padding:14px 16px;font-size:13.5px;margin-top:16px}
+
+  /* sliders */
+  .slider-row{margin:18px 0}
+  .slider-row .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .slider-row .name{font-weight:700;font-size:14.5px}
+  .slider-row .val{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:15px;background:var(--bg);border:1.5px solid var(--line);padding:2px 10px;border-radius:8px}
+  .slider-row .hint{font-size:12.5px;color:var(--muted);margin-top:2px}
+  input[type=range]{width:100%;accent-color:var(--brand);height:28px;cursor:pointer}
+  .planner-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:8px}
+  .planner-out .cell{background:var(--bg);border:1.5px solid var(--line);border-radius:14px;padding:14px 16px}
+  .planner-out .k{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .planner-out .v{font-family:"Archivo",sans-serif;font-size:24px;font-weight:800;margin-top:2px}
+  .planner-out .v small{font-size:13px;color:var(--ink2);font-weight:700}
+  .sharebar{height:14px;border-radius:99px;background:var(--bg2);border:1.5px solid var(--line);overflow:hidden;margin-top:14px}
+  .sharebar > div{height:100%;background:var(--brand);width:0%;transition:width .3s ease}
+
+  /* pool bars */
+  .pool-row{margin:14px 0}
+  .pool-row .top{display:flex;justify-content:space-between;font-size:13.5px;gap:10px;flex-wrap:wrap}
+  .pool-row .top b{font-weight:800}
+  .pool-row .top span{color:var(--ink2)}
+  .bar{height:16px;border-radius:99px;background:var(--bg2);border:1.5px solid var(--line);overflow:hidden;margin-top:6px}
+  .bar > div{height:100%}
+  .bar .paid{background:var(--brand)} .bar .comp{background:var(--amber)} .bar .unclaimed{background:var(--teal)} .bar .rem{background:var(--muted)}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  td .addr{font-family:"JetBrains Mono",monospace;font-size:12.5px;word-break:break-all}
+  .copy-btn{border:1.5px solid var(--line2);background:var(--bg);border-radius:8px;padding:4px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;color:var(--ink);white-space:nowrap}
+  @media(max-width:640px){
+    table,thead,tbody,tr,th,td{display:block}
+    thead{display:none}
+    tr{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px;background:var(--surface)}
+    td{border:none;padding:5px 0}
+    td::before{content:attr(data-k);display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  }
+
+  details{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:4px 18px;margin-top:12px}
+  summary{cursor:pointer;font-weight:800;padding:12px 0;font-size:15px}
+  details p{margin:0 0 14px;font-size:14px;color:var(--ink2)}
+  footer{margin-top:44px;border-top:1.5px solid var(--line);padding-top:18px;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:space-between}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--bg);font-weight:700;font-size:14px;border-radius:12px;padding:11px 18px;box-shadow:var(--shadow);transition:transform .25s ease;z-index:50;max-width:92vw;text-align:center}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="strip">
+  <div class="strip-in">
+    <span><span class="dot" id="rpcDot"></span><span id="rpcStatus">Sepolia Testnet · Chain 11155111</span></span>
+    <span>Stream reward: <b>BERAKHIR</b> (rate 0 SQK/dtk)</span>
+    <span>Staking SQK (Capital): <b>BELUM BUKA</b></span>
+    <span class="right" id="snapInfo">Snapshot posisi: 8 Nov 2026 · 07:05 WITA · Blok 12.086.820</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-grid">
+      <div>
+        <h1>Kelola stake Squeek kamu, <span class="hl">klaim SQK tanpa nebak-nebak.</span></h1>
+        <p class="lede">Tool manajemen staking Squeekchain di Sepolia: cek posisi wallet mana pun langsung dari chain, hitung power &amp; porsi pool sebelum stream berikutnya dibuka, dan eksekusi klaim dari wallet kamu sendiri — bukan sekadar dashboard baca-saja.</p>
+        <div class="chips">
+          <span class="chip">Profil: <b>LordSagai</b> · Tier GOLD</span>
+          <span class="chip">Kode invite: <b class="mono">K5B4J8JA</b></span>
+          <span class="chip">ENS: <b class="mono">tobacco.leoether.eth</b></span>
+          <span class="chip">Genesis: <b>9.999 NFT · Mint TBA</b></span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <h3>Siap diklaim — wallet Leo</h3>
+        <div><span class="big-claim" id="heroClaim">49,66 <small>SQK</small></span><span class="final-badge">ANGKA FINAL</span></div>
+        <p>Stream sudah habis (remaining 0, rate 0), jadi angka ini <b>tidak akan naik lagi</b>. Klaim = tanda tangan kamu sendiri dari wallet ketiga di Sepolia, gas pakai Sepolia ETH. Panel klaim ada di bagian 02.</p>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="k">Squeek #4844 <span class="tag">STAKED ✓</span></div>
+        <div class="v">Level 1 <small>· Power 1.000</small></div>
+        <div class="s">Depositor terverifikasi on-chain = wallet ketiga Leo (0xBfd0…1338).</div>
+      </div>
+      <div class="stat">
+        <div class="k">Saldo SQK <span class="tag">DI WALLET</span></div>
+        <div class="v">413,55 <small>SQK</small></div>
+        <div class="s">Hasil klaim 7 Nov 2026 pukul 16:55 WITA (413,5487 SQK).</div>
+      </div>
+      <div class="stat">
+        <div class="k">Total setelah klaim <span class="tag warn">PROYEKSI</span></div>
+        <div class="v">463,21 <small>SQK</small></div>
+        <div class="s">413,55 + 49,66 claimable. Power SQK tetap 0 sampai staking SQK dibuka.</div>
+      </div>
+      <div class="stat">
+        <div class="k">Power akun <span class="tag">NFT 1.000 / SQK 0</span></div>
+        <div class="v">1.000 <small>power</small></div>
+        <div class="s">Porsi pool NFT saat ini ±0,0133% dari total 7.504.000 power.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 01 LIVE CHECK -->
+  <section id="cek">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Cek posisi live dari chain</h2></div>
+    <p class="sec-sub">Masukkan alamat wallet (dan ID Squeek untuk cek status stake) — tool ini membaca langsung kontrak staking di Sepolia lewat RPC publik saat kamu menekan tombol. Tidak ada wallet yang perlu di-connect untuk membaca.</p>
+    <div class="panel">
+      <div class="rowflex">
+        <div class="grow">
+          <label class="flabel" for="addrInput">Alamat wallet (0x…)</label>
+          <input type="text" id="addrInput" class="mono" value="0xBfd0Fe82C81d2319D7a536B4126f7353Be2b1338" spellcheck="false" />
+        </div>
+        <div style="flex:0 1 150px">
+          <label class="flabel" for="tokenInput">ID Squeek</label>
+          <input type="number" id="tokenInput" value="4844" min="0" />
+        </div>
+        <button class="btn btn-brand" id="checkBtn">Cek posisi sekarang</button>
+      </div>
+      <div class="result-box" id="liveResult">
+        <div class="grid">
+          <div><div class="k">Claimable</div><div class="v" id="rClaim">49,66 <small>SQK</small></div></div>
+          <div><div class="k">Saldo SQK</div><div class="v" id="rBal">413,55 <small>SQK</small></div></div>
+          <div><div class="k">Power NFT / SQK</div><div class="v" id="rPower">1.000 <small>/ 0</small></div></div>
+          <div><div class="k">Status #<span id="rTokId">4844</span></div><div class="v" id="rStake" style="font-size:17px;padding-top:4px">Staked ✓</div></div>
+          <div><div class="k">Stream rate</div><div class="v" id="rRate">0 <small>SQK/dtk</small></div></div>
+          <div><div class="k">Blok terbaca</div><div class="v mono" id="rBlock" style="font-size:17px;padding-top:4px">12.086.820</div></div>
+        </div>
+        <div class="status-line" id="liveStatus">Menampilkan snapshot terakhir yang terverifikasi (8 Nov 2026, 07:05 WITA). Tekan “Cek posisi sekarang” untuk membaca ulang dari chain.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 CLAIM -->
+  <section id="klaim">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Klaim SQK — eksekusi dari wallet kamu</h2></div>
+    <p class="sec-sub">Ini bagian yang membedakan tool ini dari dashboard baca-saja: tombol klaim membangun transaksi <span class="mono">claim()</span> ke kontrak staking dan mengirimnya lewat wallet kamu sendiri. Tool ini tidak pernah memegang kunci dan tidak bisa klaim atas nama siapa pun.</p>
+    <div class="grid2">
+      <div class="panel">
+        <label class="flabel">Status wallet</label>
+        <p style="margin:0 0 14px;font-size:14.5px" id="walletStatus">Belum connect. Connect wallet yang memegang Squeek yang di-stake (untuk Leo: wallet ketiga 0xBfd0…1338).</p>
+        <div class="rowflex">
+          <button class="btn btn-amber" id="connectBtn">Connect wallet</button>
+          <button class="btn btn-brand" id="claimBtn" disabled>Klaim 49,66 SQK</button>
+        </div>
+        <div class="status-line" id="claimStatus">Syarat klaim: jaringan Sepolia (11155111) + saldo Sepolia ETH untuk gas + claimable &gt; 0.</div>
+        <div class="warnbox"><b>Ingat:</b> klaim selalu dari wallet pemilik stake. Kalau alamat yang connect bukan depositor #4844, claimable-nya akan terbaca 0 dan transaksi tidak ada gunanya — cek dulu di bagian 01.</div>
+      </div>
+      <div class="panel">
+        <label class="flabel">Langkah klaim manual (kalau tidak mau connect di sini)</label>
+        <ol class="steps">
+          <li><span class="n"></span><div><b>Buka wallet kamu, pindah ke Sepolia</b><p>Pastikan chain-nya Ethereum Sepolia (11155111) dan alamatnya wallet ketiga 0xBfd0Fe82C81d2319D7a536B4126f7353Be2b1338.</p></div></li>
+          <li><span class="n"></span><div><b>Pastikan ada Sepolia ETH</b><p>Gas klaim dibayar pakai Sepolia ETH (testnet). Tanpa itu transaksi gagal sebelum jalan.</p></div></li>
+          <li><span class="n"></span><div><b>Panggil claim() di kontrak staking</b><p>Kontrak: <span class="mono">0x50fd…11ca</span> — bisa dari tombol di tool ini, atau lewat Etherscan Sepolia → Contract → Write → claim.</p></div></li>
+          <li><span class="n"></span><div><b>Verifikasi saldo bertambah</b><p>Setelah sukses, saldo SQK naik dari 413,55 → ±463,21 SQK dan claimable kembali 0. Cek ulang di bagian 01.</p></div></li>
+        </ol>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <label class="flabel">Riwayat klaim terverifikasi</label>
+      <table>
+        <thead><tr><th>Waktu</th><th>Aksi</th><th>Jumlah</th><th>Transaksi</th></tr></thead>
+        <tbody>
+          <tr>
+            <td data-k="Waktu">7 Nov 2026 · 16:55:48 WITA</td>
+            <td data-k="Aksi">Claim SQK (stream pertama)</td>
+            <td data-k="Jumlah"><b>413,5487 SQK</b></td>
+            <td data-k="Transaksi"><span class="addr">0x980d1053…6384</span> <a href="https://sepolia.etherscan.io/tx/0x980d1053059be776c15f06b63181b4f78ce72ae2d2225d169af81a839cb26384" target="_blank" rel="noopener">Etherscan ↗</a></td>
+          </tr>
+          <tr>
+            <td data-k="Waktu">6 Nov 2026 · ±17:57 WITA</td>
+            <td data-k="Aksi">Stake Squeek #4844</td>
+            <td data-k="Jumlah"><b>Power 1.000 · Level 1</b></td>
+            <td data-k="Transaksi"><span class="addr">0xbdfcfc0e…6bb</span> <a href="https://sepolia.etherscan.io/tx/0xbdfcfc0ec4f3e98f27cf5a1889c728112ee5cd5ac87cb76471c6191aed1e96bb" target="_blank" rel="noopener">Etherscan ↗</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 03 PLANNER -->
+  <section id="planner">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Power Planner — rancang posisi sebelum stream berikutnya</h2></div>
+    <p class="sec-sub">Geser-geser untuk mensimulasikan posisi kamu: berapa power yang kamu pegang, berapa persen porsi pool-nya, dan berapa SQK yang secara proporsional mengalir ke kamu kalau stream baru sebesar stream kemarin (7.753.344 SQK) dibuka dengan total power yang sama. Ini simulasi perencanaan — bukan janji hasil.</p>
+    <div class="panel">
+      <div class="slider-row">
+        <div class="top"><span class="name">Jumlah Squeek di-stake</span><span class="val" id="vNft">1 NFT</span></div>
+        <input type="range" id="sNft" min="1" max="20" step="1" value="1" />
+        <div class="hint">Posisi Leo sekarang: 1 NFT (#4844). Genesis total 9.999 NFT.</div>
+      </div>
+      <div class="slider-row">
+        <div class="top"><span class="name">Power rata-rata per Squeek</span><span class="val" id="vPow">1.000</span></div>
+        <input type="range" id="sPow" min="500" max="5000" step="100" value="1000" />
+        <div class="hint">#4844 Level 1 = 1.000 power. Level/power lebih tinggi menaikkan porsi pool NFT kamu.</div>
+      </div>
+      <div class="slider-row">
+        <div class="top"><span class="name">SQK yang ikut di-stake (saat staking SQK dibuka)</span><span class="val" id="vSqk">0 SQK</span></div>
+        <input type="range" id="sSqk" min="0" max="5000" step="10" value="0" />
+        <div class="hint">Tab CAPITAL masih “NOT OPEN YET” — slider ini untuk perencanaan Day One / The Stakooor. Saldo Leo: 413,55 SQK (+49,66 claimable).</div>
+      </div>
+      <div class="planner-out">
+        <div class="cell"><div class="k">Total power kamu</div><div class="v" id="oPower">1.000</div></div>
+        <div class="cell"><div class="k">Porsi pool gabungan</div><div class="v" id="oShare">0,0123%</div></div>
+        <div class="cell"><div class="k">Simulasi bagian dari stream 7,75 jt SQK</div><div class="v" id="oStream">±955 <small>SQK</small></div></div>
+        <div class="cell"><div class="k">Dibanding posisi sekarang</div><div class="v" id="oDiff">1,0×</div></div>
+      </div>
+      <div class="sharebar"><div id="shareFill"></div></div>
+      <div class="status-line">Acuan pool (snapshot 8 Nov): total power NFT 7.504.000 · total power SQK 720.079 · total gabungan 8.224.079. Posisi Leo sekarang menerima 49,66 SQK dari sisa stream terakhir karena stream berhenti di tengah jalan — simulasi di atas mengasumsikan stream penuh selesai.</div>
+    </div>
+
+    <div class="panel">
+      <label class="flabel">Merge Planner — gabung beberapa Squeek</label>
+      <p style="margin:0 0 6px;font-size:14px;color:var(--ink2)">Rencanakan penggabungan: masukkan power tiap Squeek yang mau digabung, lihat total power hasil gabungan dan efeknya ke porsi pool. Power hasil merge dihitung sebagai jumlah power komponennya (konservatif — bonus level, kalau ada, dihitung sebagai kejutan positif, bukan asumsi).</p>
+      <div id="mergeRows"></div>
+      <div class="rowflex" style="margin-top:12px">
+        <button class="btn btn-ghost btn-sm" id="addMergeBtn">+ Tambah Squeek</button>
+        <button class="btn btn-ghost btn-sm" id="resetMergeBtn">Reset</button>
+      </div>
+      <div class="result-box">
+        <div class="grid">
+          <div><div class="k">Jumlah digabung</div><div class="v" id="mCount">2 <small>NFT</small></div></div>
+          <div><div class="k">Total power hasil</div><div class="v" id="mPower">2.000</div></div>
+          <div><div class="k">Porsi pool NFT</div><div class="v" id="mShare">0,0267%</div></div>
+          <div><div class="k">Kenaikan vs 1 NFT (1.000)</div><div class="v" id="mGain">2,0×</div></div>
+        </div>
+        <div class="status-line">Eksekusi merge tetap dilakukan di situs resmi Squeekchain saat fiturnya dibuka — planner ini untuk memutuskan <i>sebelum</i> kamu membakar NFT komponen, karena merge umumnya tidak bisa dibatalkan.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 POOL -->
+  <section id="pool">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Keadaan pool reward global</h2></div>
+    <p class="sec-sub">Angka dari <span class="mono">rewardState()</span> kontrak staking, snapshot blok 12.086.820 (8 Nov 2026, 07:05 WITA). Stream pertama sudah tuntas terdistribusi — tidak ada sisa.</p>
+    <div class="panel">
+      <div class="pool-row">
+        <div class="top"><b>Sudah dibayarkan ke staker (paid)</b><span>1.911.090,96 SQK · 24,6%</span></div>
+        <div class="bar"><div class="paid" style="width:24.6%"></div></div>
+      </div>
+      <div class="pool-row">
+        <div class="top"><b>Di-compound kembali oleh staker</b><span>3.394.715,37 SQK · 43,8%</span></div>
+        <div class="bar"><div class="comp" style="width:43.8%"></div></div>
+      </div>
+      <div class="pool-row">
+        <div class="top"><b>Terakru, belum diklaim (tersebar di semua staker)</b><span>2.447.537,84 SQK · 31,6%</span></div>
+        <div class="bar"><div class="unclaimed" style="width:31.6%"></div></div>
+      </div>
+      <div class="pool-row">
+        <div class="top"><b>Sisa stream (remaining)</b><span>0 SQK · 0%</span></div>
+        <div class="bar"><div class="rem" style="width:0%"></div></div>
+      </div>
+      <div class="status-line">Total didanai (funded): <b>7.753.344,18 SQK</b> · Total power NFT di pool: <b>7.504.000</b> · Total power SQK: <b>720.079</b> · Stream berikutnya menunggu peluncuran Genesis (backend masih <span class="mono">launch_unconfigured</span>).</div>
+      <div class="redbox"><b>Staking SQK belum buka.</b> Tab CAPITAL di situs resmi masih “NOT OPEN YET — Reserved for Day One (Genesis sale) and The Stakooor”. 463,21 SQK kamu (setelah klaim) disimpan dulu — jangan kirim SQK ke alamat mana pun yang mengaku sebagai “staking” sebelum pengumuman resmi di squeekchain.com.</div>
+    </div>
+  </section>
+
+  <!-- 05 CONTRACTS -->
+  <section id="kontrak">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Kontrak &amp; tautan resmi</h2></div>
+    <p class="sec-sub">Semua alamat di jaringan Sepolia. Selalu cocokkan alamat dari sini sebelum tanda tangan apa pun.</p>
+    <div class="panel" style="padding:8px 22px">
+      <table>
+        <thead><tr><th>Kontrak</th><th>Alamat</th><th></th><th></th></tr></thead>
+        <tbody>
+          <tr>
+            <td data-k="Kontrak"><b>SqueekStaking</b><br /><span style="color:var(--ink2);font-size:13px">Stake NFT, power, claimable, claim</span></td>
+            <td data-k="Alamat"><span class="addr">0x50fd1780526C3186A0c037c7622203bC4fb611ca</span></td>
+            <td data-k=""><button class="copy-btn" data-copy="0x50fd1780526C3186A0c037c7622203bC4fb611ca">Salin</button></td>
+            <td data-k=""><a href="https://sepolia.etherscan.io/address/0x50fd1780526C3186A0c037c7622203bC4fb611ca" target="_blank" rel="noopener">Etherscan ↗</a></td>
+          </tr>
+          <tr>
+            <td data-k="Kontrak"><b>Token SQK</b><br /><span style="color:var(--ink2);font-size:13px">ERC-20, 18 desimal</span></td>
+            <td data-k="Alamat"><span class="addr">0xd78a3956cF63164d1Fa1C622ad3c66623162Fa1e</span></td>
+            <td data-k=""><button class="copy-btn" data-copy="0xd78a3956cF63164d1Fa1C622ad3c66623162Fa1e">Salin</button></td>
+            <td data-k=""><a href="https://sepolia.etherscan.io/address/0xd78a3956cF63164d1Fa1C622ad3c66623162Fa1e" target="_blank" rel="noopener">Etherscan ↗</a></td>
+          </tr>
+          <tr>
+            <td data-k="Kontrak"><b>NFT Squeek (Genesis)</b><br /><span style="color:var(--ink2);font-size:13px">Koleksi asal #4844</span></td>
+            <td data-k="Alamat"><span class="addr">0xC4C7982657f00509548F3a3a41db7FA439a6856B</span></td>
+            <td data-k=""><button class="copy-btn" data-copy="0xC4C7982657f00509548F3a3a41db7FA439a6856B">Salin</button></td>
+            <td data-k=""><a href="https://sepolia.etherscan.io/address/0xC4C7982657f00509548F3a3a41db7FA439a6856B" target="_blank" rel="noopener">Etherscan ↗</a></td>
+          </tr>
+          <tr>
+            <td data-k="Kontrak"><b>Situs resmi Genesis</b><br /><span style="color:var(--ink2);font-size:13px">Profil, badge &amp; whitelist</span></td>
+            <td data-k="Alamat"><span class="addr">squeekchain.com/genesis</span></td>
+            <td data-k=""><button class="copy-btn" data-copy="https://squeekchain.com/genesis">Salin</button></td>
+            <td data-k=""><a href="https://squeekchain.com/genesis" target="_blank" rel="noopener">Buka ↗</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <details>
+      <summary>Kenapa claimable berhenti di 49,66 SQK?</summary>
+      <p>Karena stream reward-nya sudah selesai: <span class="mono">remaining = 0</span> dan <span class="mono">streamRate = 0</span> on-chain. Seluruh dana stream (7.753.344,18 SQK) sudah terakru ke para staker — sebagian sudah dibayar, sebagian di-compound, sisanya menunggu diklaim seperti 49,66 SQK punya Leo. Angka ini final dan tidak akan bertambah sampai stream baru didanai.</p>
+    </details>
+    <details>
+      <summary>Apakah tool ini bisa stake / unstake NFT?</summary>
+      <p>Stake dan unstake NFT dilakukan di situs resmi Squeekchain (transaksi deposit/withdraw ke kontrak staking yang sama). Tool ini fokus ke manajemennya: memverifikasi status stake wallet mana pun (<span class="mono">depositor()</span>), membaca power &amp; claimable secara live, merencanakan power/merge, dan mengeksekusi klaim. Untuk #4844, statusnya sudah terverifikasi staked sejak 6 Nov 2026.</p>
+    </details>
+    <details>
+      <summary>Tool ini dibuat untuk apa?</summary>
+      <p>Tool ini adalah proyek builder untuk badge <b>“The Buildooooor”</b> di Squeekchain Genesis — mengisi celah yang belum ada di board Genesis: tool manajemen staking yang benar-benar mengeksekusi (klaim), bukan planner/dashboard baca-saja. Dibangun oleh LordSagai (invite K5B4J8JA).</p>
+    </details>
+  </section>
+
+  <footer>
+    <span>Squeekchain Staking Tool · Sepolia Testnet (11155111) · Semua angka posisi dari pembacaan on-chain terverifikasi.</span>
+    <span>Snapshot terakhir: 8 Nov 2026 · 07:05 WITA · Blok 12.086.820</span>
+  </footer>
+</div>
+
+<div class="toast" id="toast">Disalin</div>
+
+<script>
+(function(){
+  "use strict";
+  var STAKING = "0x50fd1780526C3186A0c037c7622203bC4fb611ca";
+  var SQK = "0xd78a3956cF63164d1Fa1C622ad3c66623162Fa1e";
+  var NFT = "0xC4C7982657f00509548F3a3a41db7FA439a6856B";
+  var RPC = "https://ethereum-sepolia-rpc.publicnode.com";
+  var SEPOLIA_HEX = "0xaa36a7"; // 11155111
+
+  var SNAP = {
+    claimable: 49.664499134878895,
+    balance: 413.54874186994425,
+    nftPower: 1000, sqkPower: 0,
+    totalNftPower: 7504000, totalSqkPower: 720079.3149226226,
+    funded: 7753344.177023237, stream: 7753344.177023237
+  };
+
+  function fmtID(n, dec){
+    if (dec === undefined) dec = 2;
+    return n.toLocaleString("id-ID", {minimumFractionDigits: dec, maximumFractionDigits: dec});
+  }
+  function fmtInt(n){ return Math.round(n).toLocaleString("id-ID"); }
+  function $(id){ return document.getElementById(id); }
+  function toast(msg){
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  }
+
+  /* ---------- copy buttons ---------- */
+  document.querySelectorAll("[data-copy]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var v = btn.getAttribute("data-copy");
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(v).then(function(){ toast("Alamat disalin: " + v.slice(0,10) + "…"); });
+      } else { toast(v); }
+    });
+  });
+
+  /* ---------- live check via ethers read-only ---------- */
+  var STAKING_ABI = [
+    "function claimable(address account) view returns (uint256)",
+    "function accountPower(address account) view returns (uint256 nftPower, uint256 sqkPower)",
+    "function depositor(address collection, uint256 tokenId) view returns (address)",
+    "function rewardState() view returns (uint256 funded, uint256 paid, uint256 compounded, uint256 rewardIndex, uint256 remaining, uint128 totalNftPower, uint128 totalSqkPower, uint256 streamRate, uint64 lastAccruedAt, uint64 streamEndsAt)",
+    "function claim() returns (uint256)"
+  ];
+  var ERC20_ABI = ["function balanceOf(address) view returns (uint256)", "function decimals() view returns (uint8)"];
+
+  var liveClaimable = SNAP.claimable;
+  var connectedAccount = null;
+
+  async function doCheck(){
+    var status = $("liveStatus");
+    var addr = $("addrInput").value.trim();
+    var tok = parseInt($("tokenInput").value, 10);
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)){
+      status.textContent = "Alamat tidak valid — harus 0x + 40 karakter hex.";
+      status.className = "status-line err"; return;
+    }
+    if (isNaN(tok) || tok < 0){ tok = 0; }
+    $("rTokId").textContent = tok;
+    if (typeof ethers === "undefined"){
+      status.textContent = "Library chain gagal dimuat (koneksi CDN) — snapshot terakhir tetap ditampilkan di atas.";
+      status.className = "status-line err"; return;
+    }
+    status.textContent = "Membaca dari Sepolia…";
+    status.className = "status-line";
+    try {
+      var provider = new ethers.JsonRpcProvider(RPC);
+      var staking = new ethers.Contract(STAKING, STAKING_ABI, provider);
+      var sqk = new ethers.Contract(SQK, ERC20_ABI, provider);
+      var results = await Promise.all([
+        staking.claimable(addr),
+        staking.accountPower(addr),
+        staking.depositor(NFT, tok),
+        staking.rewardState(),
+        sqk.balanceOf(addr),
+        provider.getBlockNumber()
+      ]);
+      var claim = Number(ethers.formatUnits(results[0], 18));
+      var nftP = Number(ethers.formatUnits(results[1][0], 18));
+      var sqkP = Number(ethers.formatUnits(results[1][1], 18));
+      var dep = results[2];
+      var rate = Number(ethers.formatUnits(results[3][7], 18));
+      var bal = Number(ethers.formatUnits(results[4], 18));
+      liveClaimable = claim;
+      $("rClaim").innerHTML = fmtID(claim) + " <small>SQK</small>";
+      $("rBal").innerHTML = fmtID(bal) + " <small>SQK</small>";
+      $("rPower").innerHTML = fmtInt(nftP) + " <small>/ " + fmtInt(sqkP) + "</small>";
+      var isStaked = dep && dep.toLowerCase() === addr.toLowerCase();
+      var hasDep = dep && dep !== "0x0000000000000000000000000000000000000000";
+      $("rStake").textContent = isStaked ? "Staked ✓ (milik alamat ini)" : (hasDep ? "Staked — depositor lain" : "Tidak sedang staked");
+      $("rRate").innerHTML = fmtID(rate, rate > 0 && rate < 0.01 ? 4 : 2) + " <small>SQK/dtk</small>";
+      $("rBlock").textContent = results[5].toLocaleString("id-ID");
+      $("rpcDot").className = "dot";
+      $("rpcStatus").textContent = "Sepolia Testnet · Terhubung live · Blok " + results[5].toLocaleString("id-ID");
+      status.textContent = "✓ Bacaan live berhasil — blok " + results[5].toLocaleString("id-ID") + ", baru saja. Claimable alamat ini: " + fmtID(claim) + " SQK.";
+      status.className = "status-line ok";
+      updateClaimBtn();
+    } catch(e){
+      status.textContent = "RPC Sepolia tidak merespons saat ini — angka snapshot terverifikasi (blok 12.086.820) tetap ditampilkan. Coba lagi sebentar.";
+      status.className = "status-line err";
+    }
+  }
+  $("checkBtn").addEventListener("click", doCheck);
+
+  /* ---------- wallet connect + claim ---------- */
+  function updateClaimBtn(){
+    var btn = $("claimBtn");
+    btn.textContent = "Klaim " + fmtID(liveClaimable) + " SQK";
+    btn.disabled = !(connectedAccount && liveClaimable > 0);
+  }
+  async function connectWallet(){
+    var ws = $("walletStatus"), cs = $("claimStatus");
+    if (!window.ethereum){
+      ws.textContent = "Tidak ada wallet terdeteksi di browser ini. Buka halaman ini dari browser wallet (mis. MetaMask / Binance Web3) atau ikuti langkah klaim manual di samping.";
+      return;
+    }
+    try {
+      var accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      var chainId = await window.ethereum.request({ method: "eth_chainId" });
+      if (chainId !== SEPOLIA_HEX){
+        try {
+          await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: SEPOLIA_HEX }] });
+          chainId = SEPOLIA_HEX;
+        } catch(e){
+          cs.textContent = "Wallet masih di jaringan lain — pindah ke Sepolia (11155111) dulu, lalu connect lagi.";
+          cs.className = "status-line err"; return;
+        }
+      }
+      connectedAccount = accounts[0];
+      ws.innerHTML = "Terhubung: <span class='mono'>" + connectedAccount.slice(0,10) + "…" + connectedAccount.slice(-6) + "</span> · Sepolia ✓ — membaca claimable alamat ini…";
+      /* refresh claimable for connected account */
+      $("addrInput").value = connectedAccount;
+      await doCheck();
+      cs.textContent = liveClaimable > 0
+        ? "Siap: " + fmtID(liveClaimable) + " SQK bisa diklaim dari alamat ini. Tombol klaim akan meminta konfirmasi di wallet kamu."
+        : "Alamat ini claimable-nya 0 SQK — tidak ada yang perlu diklaim. (Untuk Leo, pastikan yang connect adalah wallet ketiga 0xBfd0…1338.)";
+      cs.className = "status-line " + (liveClaimable > 0 ? "ok" : "");
+      updateClaimBtn();
+    } catch(e){
+      ws.textContent = "Connect dibatalkan atau gagal. Coba lagi dari browser wallet kamu.";
+    }
+  }
+  $("connectBtn").addEventListener("click", connectWallet);
+
+  async function doClaim(){
+    var cs = $("claimStatus");
+    if (!window.ethereum || !connectedAccount){ return; }
+    if (typeof ethers === "undefined"){ cs.textContent = "Library chain gagal dimuat — gunakan langkah klaim manual / Etherscan."; cs.className = "status-line err"; return; }
+    try {
+      var bp = new ethers.BrowserProvider(window.ethereum);
+      var signer = await bp.getSigner();
+      var staking = new ethers.Contract(STAKING, STAKING_ABI, signer);
+      cs.textContent = "Simulasi claim() dulu…";
+      cs.className = "status-line";
+      try { await staking.claim.staticCall(); } catch(simErr){
+        cs.textContent = "Simulasi claim() revert — kemungkinan claimable sudah 0 atau alamat ini bukan pemilik stake. Cek ulang di bagian 01.";
+        cs.className = "status-line err"; return;
+      }
+      cs.textContent = "Mengirim transaksi — konfirmasi di wallet kamu…";
+      var tx = await staking.claim();
+      cs.innerHTML = "Transaksi terkirim: <span class='mono'>" + tx.hash.slice(0,18) + "…</span> — menunggu konfirmasi…";
+      await tx.wait();
+      cs.innerHTML = "✓ Klaim berhasil! Tx: <a href='https://sepolia.etherscan.io/tx/" + tx.hash + "' target='_blank' rel='noopener'>" + tx.hash.slice(0,18) + "… ↗</a> — cek saldo terbaru di bagian 01.";
+      cs.className = "status-line ok";
+      liveClaimable = 0; updateClaimBtn();
+    } catch(e){
+      cs.textContent = "Transaksi dibatalkan di wallet atau gagal. Tidak ada dana yang bergerak — coba lagi saat siap.";
+      cs.className = "status-line err";
+    }
+  }
+  $("claimBtn").addEventListener("click", doClaim);
+
+  /* ---------- power planner ---------- */
+  var baseShare = SNAP.nftPower / (SNAP.totalNftPower + SNAP.totalSqkPower);
+  function runPlanner(){
+    var n = parseInt($("sNft").value, 10);
+    var p = parseInt($("sPow").value, 10);
+    var s = parseInt($("sSqk").value, 10);
+    $("vNft").textContent = n + " NFT";
+    $("vPow").textContent = fmtInt(p);
+    $("vSqk").textContent = fmtInt(s) + " SQK";
+    var myNft = n * p;
+    var total = SNAP.totalNftPower + SNAP.totalSqkPower;
+    var othersNft = SNAP.totalNftPower - SNAP.nftPower; /* pool tanpa posisi dasar Leo */
+    var othersSqk = SNAP.totalSqkPower;
+    var newTotal = othersNft + myNft + othersSqk + s;
+    var share = (myNft + s) / newTotal;
+    var streamAmt = share * SNAP.stream;
+    $("oPower").textContent = fmtInt(myNft + s);
+    $("oShare").textContent = fmtID(share * 100, 4) + "%";
+    $("oStream").innerHTML = "±" + fmtInt(streamAmt) + " <small>SQK</small>";
+    var ratio = share / baseShare;
+    $("oDiff").textContent = fmtID(ratio, 1) + "×";
+    $("shareFill").style.width = Math.min(100, share * 100 * 40) + "%"; /* diskalakan ×40 agar terlihat */
+  }
+  ["sNft","sPow","sSqk"].forEach(function(id){ $(id).addEventListener("input", runPlanner); });
+  runPlanner();
+
+  /* ---------- merge planner ---------- */
+  var mergeWrap = $("mergeRows");
+  function mergeRow(val){
+    var div = document.createElement("div");
+    div.className = "rowflex"; div.style.marginTop = "10px";
+    div.innerHTML = '<div class="grow"><label class="flabel">Power Squeek</label><input type="number" class="merge-in mono" value="' + val + '" min="0" step="100" /></div>' +
+      '<button class="btn btn-ghost btn-sm merge-del" type="button">Hapus</button>';
+    mergeWrap.appendChild(div);
+    div.querySelector(".merge-in").addEventListener("input", runMerge);
+    div.querySelector(".merge-del").addEventListener("click", function(){ div.remove(); runMerge(); });
+  }
+  function runMerge(){
+    var ins = mergeWrap.querySelectorAll(".merge-in");
+    var total = 0, count = 0;
+    ins.forEach(function(i){ var v = parseFloat(i.value) || 0; if (v > 0){ total += v; count++; } });
+    if (count === 0){ total = 0; }
+    $("mCount").innerHTML = count + " <small>NFT</small>";
+    $("mPower").textContent = fmtInt(total);
+    $("mShare").textContent = fmtID(SNAP.totalNftPower > 0 ? (total / SNAP.totalNftPower) * 100 : 0, 4) + "%";
+    $("mGain").textContent = fmtID(total / 1000, 1) + "×";
+  }
+  mergeRow(1000); mergeRow(1000); runMerge();
+  $("addMergeBtn").addEventListener("click", function(){ mergeRow(1000); runMerge(); });
+  $("resetMergeBtn").addEventListener("click", function(){ mergeWrap.innerHTML = ""; mergeRow(1000); mergeRow(1000); runMerge(); });
+})();
+</script>
+</body>
+</html>
